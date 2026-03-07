@@ -7,6 +7,11 @@ interface FetchOptions extends RequestInit {
 }
 
 async function apiFetch(endpoint: string, options: FetchOptions = {}) {
+  // Check if Supabase is configured
+  if (!projectId || projectId === 'YOUR_PROJECT_ID' || !publicAnonKey || publicAnonKey === 'YOUR_ANON_KEY') {
+    throw new Error('SUPABASE_NOT_CONFIGURED');
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${publicAnonKey}`,
@@ -135,5 +140,63 @@ export const staffAPI = {
       body: staff,
     });
     return data.staff;
+  },
+};
+
+// ========== MANPOWER API ==========
+
+export interface ManpowerEntry {
+  id?: string;
+  region?: string;
+  first_name: string;
+  second_name?: string;
+  skill?: string;
+  contact_no?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const manpowerAPI = {
+  // Get all manpower
+  getAll: async () => {
+    const data = await apiFetch('/manpower');
+    return data.manpower || [];
+  },
+
+  // Get manpower filtered by skill
+  getBySkill: async (skill: string) => {
+    const data = await apiFetch(`/manpower/by-skill/${skill}`);
+    return data.manpower || [];
+  },
+
+  // Get a specific manpower entry
+  get: async (id: string) => {
+    const data = await apiFetch(`/manpower/${id}`);
+    return data.manpower;
+  },
+
+  // Create new manpower entry
+  create: async (entry: ManpowerEntry) => {
+    const data = await apiFetch('/manpower', {
+      method: 'POST',
+      body: entry,
+    });
+    return data.manpower;
+  },
+
+  // Update manpower entry
+  update: async (id: string, updates: Partial<ManpowerEntry>) => {
+    const data = await apiFetch(`/manpower/${id}`, {
+      method: 'PUT',
+      body: updates,
+    });
+    return data.manpower;
+  },
+
+  // Delete manpower entry
+  delete: async (id: string) => {
+    await apiFetch(`/manpower/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
