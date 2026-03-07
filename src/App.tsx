@@ -3,7 +3,7 @@ import { BaseSelectionPage, BaseData } from './components/BaseSelectionPage';
 import { TrekSelectionPage, TrekData } from './components/TrekSelectionPage';
 import { TrekDetailPage, CategoryProgress } from './components/TrekDetailPage';
 import { CategoryTasksPage } from './components/CategoryTasksPage';
-import { trekAPI, taskAPI, staffAPI } from './utils/api';
+import { trekAPI, taskAPI, staffAPI, manpowerAPI, ManpowerEntry } from './utils/api';
 import { seedDatabase, checkIfSeeded } from './utils/seedData';
 
 export type TrekType = 'treks' | 'expeditions' | 'climbs';
@@ -53,7 +53,9 @@ function App() {
   const [backendTreks, setBackendTreks] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-
+  const [useMockData, setUseMockData] = useState(false);
+  const [manpowerData, setManpowerData] = useState<ManpowerEntry[]>([]);
+  
   // Base names
   const baseNames = [
     'Uttarakhand',
@@ -66,13 +68,59 @@ function App() {
   // Mock data for treks with base assignments
   const trekNames = ['Markha Valley Trek', 'Hampta Pass Trek', 'Nubra Valley Trek', 'Hidden Meadows Garhwal'];
   
-  // Mock staff database for dropdowns
-  const staffDatabase = {
-    tripLeaders: ['Rajesh Kumar', 'Amit Singh', 'Priya Sharma', 'Deepak Verma', 'Neha Patel'],
-    cooks: ['Ramesh Bisht', 'Suresh Negi', 'Kailash Thapa', 'Mohan Rawat', 'Dinesh Kumar'],
-    assistantGuides: ['Vijay Singh', 'Sonam Dorje', 'Tashi Namgyal', 'Karma Wangdi', 'Lobsang Dorji', 'Rinchen Dorji'],
-    supportStaff: ['Raju Lal', 'Shankar Prasad', 'Bhim Bahadur', 'Jeet Singh', 'Narender Kumar', 'Prakash Rai']
-  };
+  // Generate staff database from manpower data
+  const staffDatabase = useMemo(() => {
+    console.log('🔍 staffDatabase useMemo triggered. manpowerData length:', manpowerData.length);
+    console.log('📋 Raw manpowerData:', manpowerData);
+    
+    if (manpowerData.length === 0) {
+      // Fallback to mock data if manpower not loaded
+      console.log('⚠️ Using MOCK data - manpower not loaded from backend');
+      return {
+        tripLeaders: ['Rajesh Kumar', 'Amit Singh', 'Priya Sharma', 'Deepak Verma', 'Neha Patel'],
+        cooks: ['Ramesh Bisht', 'Suresh Negi', 'Kailash Thapa', 'Mohan Rawat', 'Dinesh Kumar'],
+        assistantGuides: ['Vijay Singh', 'Sonam Dorje', 'Tashi Namgyal', 'Karma Wangdi', 'Lobsang Dorji', 'Rinchen Dorji'],
+        supportStaff: ['Raju Lal', 'Shankar Prasad', 'Bhim Bahadur', 'Jeet Singh', 'Narender Kumar', 'Prakash Rai']
+      };
+    }
+
+    // Helper function to get full name
+    const getFullName = (person: ManpowerEntry) => {
+      const fullName = `${person.first_name} ${person.second_name || ''}`.trim();
+      return fullName;
+    };
+
+    // Filter by skill
+    const tripLeaders = manpowerData
+      .filter(p => p.skill === 'Trip Leader T' || p.skill === 'Trip Leader ME')
+      .map(getFullName);
+
+    const cooks = manpowerData
+      .filter(p => p.skill === 'Cook')
+      .map(getFullName);
+
+    const assistantGuides = manpowerData
+      .filter(p => p.skill === 'Guide English speaking' || p.skill === 'Trainee Guide')
+      .map(getFullName);
+
+    const supportStaff = manpowerData
+      .filter(p => p.skill === 'Lead Sherpa' || p.skill === 'Sherpa')
+      .map(getFullName);
+
+    console.log('✅ Generated staff database from manpower:', {
+      tripLeaders,
+      cooks,
+      assistantGuides,
+      supportStaff
+    });
+
+    return {
+      tripLeaders,
+      cooks,
+      assistantGuides,
+      supportStaff
+    };
+  }, [manpowerData]);
   
   // Load data from backend on mount
   useEffect(() => {
@@ -93,11 +141,26 @@ function App() {
         const treksFromBackend = await trekAPI.getAll();
         console.log('Loaded treks from backend:', treksFromBackend);
         setBackendTreks(treksFromBackend);
+        setUseMockData(false);
+        
+        // Load manpower data from backend
+        const manpowerFromBackend = await manpowerAPI.getAll();
+        console.log('Loaded manpower data from backend:', manpowerFromBackend);
+        setManpowerData(manpowerFromBackend);
         
         setIsLoading(false);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error loading data from backend:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load data');
+        
+        // Check if it's a Supabase configuration error
+        if (err?.message === 'SUPABASE_NOT_CONFIGURED' || err?.message?.includes('Failed to fetch')) {
+          console.log('⚠️ Supabase not configured. Using mock data for testing.');
+          setUseMockData(true);
+          setError(null); // Clear error since we're using fallback
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to load data');
+        }
+        
         setIsLoading(false);
       }
     };
@@ -1624,6 +1687,12 @@ function App() {
         task.id === taskId ? { ...task, ...updates } : task
       )
     );
+    
+    // Skip backend save if using mock data
+    if (useMockData) {
+      console.log('Using mock data - skipping backend save');
+      return;
+    }
     
     // Save to backend (auto-save)
     const saveToBackend = async () => {
