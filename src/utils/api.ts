@@ -1,4 +1,5 @@
 import { projectId, publicAnonKey } from './supabase/info';
+import { supabaseClient } from './supabaseClient';
 
 const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-f8ee75b1`;
 
@@ -157,46 +158,127 @@ export interface ManpowerEntry {
 }
 
 export const manpowerAPI = {
-  // Get all manpower
-  getAll: async () => {
-    const data = await apiFetch('/manpower');
-    return data.manpower || [];
+  // Get all manpower - Query Supabase DIRECTLY (bypassing Edge Function)
+  getAll: async (): Promise<ManpowerEntry[]> => {
+    try {
+      console.log('🔍 Querying manpower table directly from Supabase...');
+      const { data, error } = await supabaseClient
+        .from('manpower')
+        .select('*')
+        .order('first_name');
+      
+      if (error) {
+        console.error('❌ Supabase error fetching manpower:', error);
+        throw error;
+      }
+      
+      console.log('✅ Loaded manpower from Supabase:', data?.length || 0, 'records');
+      return data || [];
+    } catch (err) {
+      console.error('❌ Error fetching manpower:', err);
+      return [];
+    }
   },
 
-  // Get manpower filtered by skill
-  getBySkill: async (skill: string) => {
-    const data = await apiFetch(`/manpower/by-skill/${skill}`);
-    return data.manpower || [];
+  // Get manpower filtered by skill - Query Supabase DIRECTLY
+  getBySkill: async (skill: string): Promise<ManpowerEntry[]> => {
+    try {
+      const { data, error } = await supabaseClient
+        .from('manpower')
+        .select('*')
+        .ilike('skill', `%${skill}%`)
+        .order('first_name');
+      
+      if (error) {
+        console.error('❌ Supabase error fetching manpower by skill:', error);
+        throw error;
+      }
+      
+      return data || [];
+    } catch (err) {
+      console.error('❌ Error fetching manpower by skill:', err);
+      return [];
+    }
   },
 
-  // Get a specific manpower entry
-  get: async (id: string) => {
-    const data = await apiFetch(`/manpower/${id}`);
-    return data.manpower;
+  // Get a specific manpower entry - Query Supabase DIRECTLY
+  get: async (id: string): Promise<ManpowerEntry | null> => {
+    try {
+      const { data, error } = await supabaseClient
+        .from('manpower')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        console.error('❌ Supabase error fetching manpower entry:', error);
+        throw error;
+      }
+      
+      return data;
+    } catch (err) {
+      console.error('❌ Error fetching manpower entry:', err);
+      return null;
+    }
   },
 
-  // Create new manpower entry
-  create: async (entry: ManpowerEntry) => {
-    const data = await apiFetch('/manpower', {
-      method: 'POST',
-      body: entry,
-    });
-    return data.manpower;
+  // Create new manpower entry - Query Supabase DIRECTLY
+  create: async (entry: ManpowerEntry): Promise<ManpowerEntry | null> => {
+    try {
+      const { data, error } = await supabaseClient
+        .from('manpower')
+        .insert(entry)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ Supabase error creating manpower entry:', error);
+        throw error;
+      }
+      
+      return data;
+    } catch (err) {
+      console.error('❌ Error creating manpower entry:', err);
+      return null;
+    }
   },
 
-  // Update manpower entry
-  update: async (id: string, updates: Partial<ManpowerEntry>) => {
-    const data = await apiFetch(`/manpower/${id}`, {
-      method: 'PUT',
-      body: updates,
-    });
-    return data.manpower;
+  // Update manpower entry - Query Supabase DIRECTLY
+  update: async (id: string, updates: Partial<ManpowerEntry>): Promise<ManpowerEntry | null> => {
+    try {
+      const { data, error } = await supabaseClient
+        .from('manpower')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ Supabase error updating manpower entry:', error);
+        throw error;
+      }
+      
+      return data;
+    } catch (err) {
+      console.error('❌ Error updating manpower entry:', err);
+      return null;
+    }
   },
 
-  // Delete manpower entry
-  delete: async (id: string) => {
-    await apiFetch(`/manpower/${id}`, {
-      method: 'DELETE',
-    });
+  // Delete manpower entry - Query Supabase DIRECTLY
+  delete: async (id: string): Promise<void> => {
+    try {
+      const { error } = await supabaseClient
+        .from('manpower')
+        .delete()
+        .eq('id', id);
+      
+      if (error) {
+        console.error('❌ Supabase error deleting manpower entry:', error);
+        throw error;
+      }
+    } catch (err) {
+      console.error('❌ Error deleting manpower entry:', err);
+    }
   },
 };
