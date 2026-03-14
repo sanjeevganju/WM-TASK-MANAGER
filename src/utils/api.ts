@@ -153,132 +153,42 @@ export interface ManpowerEntry {
   second_name?: string;
   skill?: string;
   contact_no?: string;
-  created_at?: string;
-  updated_at?: string;
+  full_name?: string;
 }
 
 export const manpowerAPI = {
-  // Get all manpower - Query Supabase DIRECTLY (bypassing Edge Function)
+  // Get all manpower from Google Sheets via backend
   getAll: async (): Promise<ManpowerEntry[]> => {
     try {
-      console.log('🔍 Querying manpower table directly from Supabase...');
-      const { data, error } = await supabaseClient
-        .from('manpower')
-        .select('*')
-        .order('first_name');
-      
-      if (error) {
-        console.error('❌ Supabase error fetching manpower:', error);
-        throw error;
-      }
-      
-      console.log('✅ Loaded manpower from Supabase:', data?.length || 0, 'records');
-      return data || [];
+      console.log('🔍 Fetching manpower from Google Sheets...');
+      const data = await apiFetch('/manpower');
+      console.log('✅ Loaded manpower from Google Sheets:', data.manpower?.length || 0, 'records');
+      return data.manpower || [];
     } catch (err) {
       console.error('❌ Error fetching manpower:', err);
       return [];
     }
   },
 
-  // Get manpower filtered by skill - Query Supabase DIRECTLY
+  // Get manpower filtered by skill
   getBySkill: async (skill: string): Promise<ManpowerEntry[]> => {
     try {
-      const { data, error } = await supabaseClient
-        .from('manpower')
-        .select('*')
-        .ilike('skill', `%${skill}%`)
-        .order('first_name');
-      
-      if (error) {
-        console.error('❌ Supabase error fetching manpower by skill:', error);
-        throw error;
-      }
-      
-      return data || [];
+      const data = await apiFetch(`/manpower/by-skill/${skill}`);
+      return data.manpower || [];
     } catch (err) {
       console.error('❌ Error fetching manpower by skill:', err);
       return [];
     }
   },
 
-  // Get a specific manpower entry - Query Supabase DIRECTLY
+  // Get a specific manpower entry
   get: async (id: string): Promise<ManpowerEntry | null> => {
     try {
-      const { data, error } = await supabaseClient
-        .from('manpower')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error) {
-        console.error('❌ Supabase error fetching manpower entry:', error);
-        throw error;
-      }
-      
-      return data;
+      const data = await apiFetch(`/manpower/${id}`);
+      return data.manpower;
     } catch (err) {
       console.error('❌ Error fetching manpower entry:', err);
       return null;
-    }
-  },
-
-  // Create new manpower entry - Query Supabase DIRECTLY
-  create: async (entry: ManpowerEntry): Promise<ManpowerEntry | null> => {
-    try {
-      const { data, error } = await supabaseClient
-        .from('manpower')
-        .insert(entry)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('❌ Supabase error creating manpower entry:', error);
-        throw error;
-      }
-      
-      return data;
-    } catch (err) {
-      console.error('❌ Error creating manpower entry:', err);
-      return null;
-    }
-  },
-
-  // Update manpower entry - Query Supabase DIRECTLY
-  update: async (id: string, updates: Partial<ManpowerEntry>): Promise<ManpowerEntry | null> => {
-    try {
-      const { data, error } = await supabaseClient
-        .from('manpower')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('❌ Supabase error updating manpower entry:', error);
-        throw error;
-      }
-      
-      return data;
-    } catch (err) {
-      console.error('❌ Error updating manpower entry:', err);
-      return null;
-    }
-  },
-
-  // Delete manpower entry - Query Supabase DIRECTLY
-  delete: async (id: string): Promise<void> => {
-    try {
-      const { error } = await supabaseClient
-        .from('manpower')
-        .delete()
-        .eq('id', id);
-      
-      if (error) {
-        console.error('❌ Supabase error deleting manpower entry:', error);
-        throw error;
-      }
-    } catch (err) {
-      console.error('❌ Error deleting manpower entry:', err);
     }
   },
 };
